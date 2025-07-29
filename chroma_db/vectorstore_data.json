@@ -1,0 +1,395 @@
+{
+  "documents": [
+    {
+      "content": "김민수 코디네이터는 FEMALE, 55세입니다. 돌봄지수는 4.9점입니다. 연락처: 010-1747-0538 이메일: 김민수@example.com",
+      "metadata": {
+        "coordinator_id": 1,
+        "name": "김민수",
+        "gender": "FEMALE",
+        "age": 55,
+        "care_index": 4.9,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-1747-0538",
+        "email": "김민수@example.com",
+        "address": "서울시 강남구"
+      }
+    },
+    {
+      "content": "이영희 코디네이터는 FEMALE, 40세입니다. 돌봄지수는 3.6점입니다. 연락처: 010-1646-7847 이메일: 이영희@example.com",
+      "metadata": {
+        "coordinator_id": 2,
+        "name": "이영희",
+        "gender": "FEMALE",
+        "age": 40,
+        "care_index": 3.6,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-1646-7847",
+        "email": "이영희@example.com",
+        "address": "서울시 서초구"
+      }
+    },
+    {
+      "content": "박지현 코디네이터는 FEMALE, 44세입니다. 돌봄지수는 4.1점입니다. 연락처: 010-4562-5117 이메일: 박지현@example.com",
+      "metadata": {
+        "coordinator_id": 3,
+        "name": "박지현",
+        "gender": "FEMALE",
+        "age": 44,
+        "care_index": 4.1,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-4562-5117",
+        "email": "박지현@example.com",
+        "address": "서울시 송파구"
+      }
+    },
+    {
+      "content": "최수진 코디네이터는 MALE, 31세입니다. 돌봄지수는 3.3점입니다. 연락처: 010-1410-2769 이메일: 최수진@example.com",
+      "metadata": {
+        "coordinator_id": 4,
+        "name": "최수진",
+        "gender": "MALE",
+        "age": 31,
+        "care_index": 3.3,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-1410-2769",
+        "email": "최수진@example.com",
+        "address": "서울시 강동구"
+      }
+    },
+    {
+      "content": "정민호 코디네이터는 FEMALE, 35세입니다. 돌봄지수는 4.7점입니다. 연락처: 010-8388-5998 이메일: 정민호@example.com",
+      "metadata": {
+        "coordinator_id": 5,
+        "name": "정민호",
+        "gender": "FEMALE",
+        "age": 35,
+        "care_index": 4.7,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-8388-5998",
+        "email": "정민호@example.com",
+        "address": "서울시 마포구"
+      }
+    },
+    {
+      "content": "한소영 코디네이터는 MALE, 28세입니다. 돌봄지수는 4.6점입니다. 연락처: 010-2472-1857 이메일: 한소영@example.com",
+      "metadata": {
+        "coordinator_id": 6,
+        "name": "한소영",
+        "gender": "MALE",
+        "age": 28,
+        "care_index": 4.6,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-2472-1857",
+        "email": "한소영@example.com",
+        "address": "서울시 용산구"
+      }
+    },
+    {
+      "content": "임재현 코디네이터는 FEMALE, 34세입니다. 돌봄지수는 4.8점입니다. 연락처: 010-6912-5055 이메일: 임재현@example.com",
+      "metadata": {
+        "coordinator_id": 7,
+        "name": "임재현",
+        "gender": "FEMALE",
+        "age": 34,
+        "care_index": 4.8,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-6912-5055",
+        "email": "임재현@example.com",
+        "address": "서울시 중구"
+      }
+    },
+    {
+      "content": "윤서연 코디네이터는 MALE, 46세입니다. 돌봄지수는 3.8점입니다. 연락처: 010-2302-3412 이메일: 윤서연@example.com",
+      "metadata": {
+        "coordinator_id": 8,
+        "name": "윤서연",
+        "gender": "MALE",
+        "age": 46,
+        "care_index": 3.8,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-2302-3412",
+        "email": "윤서연@example.com",
+        "address": "서울시 종로구"
+      }
+    },
+    {
+      "content": "강민정 코디네이터는 FEMALE, 59세입니다. 돌봄지수는 4.2점입니다. 연락처: 010-0798-6977 이메일: 강민정@example.com",
+      "metadata": {
+        "coordinator_id": 9,
+        "name": "강민정",
+        "gender": "FEMALE",
+        "age": 59,
+        "care_index": 4.2,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-0798-6977",
+        "email": "강민정@example.com",
+        "address": "부산시 해운대구"
+      }
+    },
+    {
+      "content": "오세훈 코디네이터는 FEMALE, 52세입니다. 돌봄지수는 3.3점입니다. 연락처: 010-0809-5994 이메일: 오세훈@example.com",
+      "metadata": {
+        "coordinator_id": 10,
+        "name": "오세훈",
+        "gender": "FEMALE",
+        "age": 52,
+        "care_index": 3.3,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-0809-5994",
+        "email": "오세훈@example.com",
+        "address": "부산시 부산진구"
+      }
+    },
+    {
+      "content": "신유진 코디네이터는 FEMALE, 30세입니다. 돌봄지수는 4.6점입니다. 연락처: 010-9134-0204 이메일: 신유진@example.com",
+      "metadata": {
+        "coordinator_id": 11,
+        "name": "신유진",
+        "gender": "FEMALE",
+        "age": 30,
+        "care_index": 4.6,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-9134-0204",
+        "email": "신유진@example.com",
+        "address": "부산시 동래구"
+      }
+    },
+    {
+      "content": "배준호 코디네이터는 MALE, 36세입니다. 돌봄지수는 4.9점입니다. 연락처: 010-3018-4964 이메일: 배준호@example.com",
+      "metadata": {
+        "coordinator_id": 12,
+        "name": "배준호",
+        "gender": "MALE",
+        "age": 36,
+        "care_index": 4.9,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-3018-4964",
+        "email": "배준호@example.com",
+        "address": "부산시 남구"
+      }
+    },
+    {
+      "content": "조은영 코디네이터는 FEMALE, 27세입니다. 돌봄지수는 4.1점입니다. 연락처: 010-7366-1187 이메일: 조은영@example.com",
+      "metadata": {
+        "coordinator_id": 13,
+        "name": "조은영",
+        "gender": "FEMALE",
+        "age": 27,
+        "care_index": 4.1,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-7366-1187",
+        "email": "조은영@example.com",
+        "address": "부산시 서구"
+      }
+    },
+    {
+      "content": "황태현 코디네이터는 MALE, 27세입니다. 돌봄지수는 4.2점입니다. 연락처: 010-1586-5431 이메일: 황태현@example.com",
+      "metadata": {
+        "coordinator_id": 14,
+        "name": "황태현",
+        "gender": "MALE",
+        "age": 27,
+        "care_index": 4.2,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-1586-5431",
+        "email": "황태현@example.com",
+        "address": "부산시 중구"
+      }
+    },
+    {
+      "content": "김태영 코디네이터는 FEMALE, 35세입니다. 돌봄지수는 4.5점입니다. 연락처: 010-6050-9339 이메일: 김태영@example.com",
+      "metadata": {
+        "coordinator_id": 15,
+        "name": "김태영",
+        "gender": "FEMALE",
+        "age": 35,
+        "care_index": 4.5,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-6050-9339",
+        "email": "김태영@example.com",
+        "address": "대구시 중구"
+      }
+    },
+    {
+      "content": "이수현 코디네이터는 FEMALE, 43세입니다. 돌봄지수는 3.0점입니다. 연락처: 010-2107-7384 이메일: 이수현@example.com",
+      "metadata": {
+        "coordinator_id": 16,
+        "name": "이수현",
+        "gender": "FEMALE",
+        "age": 43,
+        "care_index": 3.0,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-2107-7384",
+        "email": "이수현@example.com",
+        "address": "대구시 동구"
+      }
+    },
+    {
+      "content": "박민아 코디네이터는 MALE, 53세입니다. 돌봄지수는 3.1점입니다. 연락처: 010-9236-8137 이메일: 박민아@example.com",
+      "metadata": {
+        "coordinator_id": 17,
+        "name": "박민아",
+        "gender": "MALE",
+        "age": 53,
+        "care_index": 3.1,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-9236-8137",
+        "email": "박민아@example.com",
+        "address": "대구시 서구"
+      }
+    },
+    {
+      "content": "최진우 코디네이터는 FEMALE, 48세입니다. 돌봄지수는 4.8점입니다. 연락처: 010-8440-9266 이메일: 최진우@example.com",
+      "metadata": {
+        "coordinator_id": 18,
+        "name": "최진우",
+        "gender": "FEMALE",
+        "age": 48,
+        "care_index": 4.8,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-8440-9266",
+        "email": "최진우@example.com",
+        "address": "대구시 남구"
+      }
+    },
+    {
+      "content": "정하늘 코디네이터는 FEMALE, 38세입니다. 돌봄지수는 3.6점입니다. 연락처: 010-9036-0665 이메일: 정하늘@example.com",
+      "metadata": {
+        "coordinator_id": 19,
+        "name": "정하늘",
+        "gender": "FEMALE",
+        "age": 38,
+        "care_index": 3.6,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-9036-0665",
+        "email": "정하늘@example.com",
+        "address": "대구시 북구"
+      }
+    },
+    {
+      "content": "문지혜 코디네이터는 MALE, 34세입니다. 돌봄지수는 4.1점입니다. 연락처: 010-2880-5668 이메일: 문지혜@example.com",
+      "metadata": {
+        "coordinator_id": 20,
+        "name": "문지혜",
+        "gender": "MALE",
+        "age": 34,
+        "care_index": 4.1,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-2880-5668",
+        "email": "문지혜@example.com",
+        "address": "인천시 남동구"
+      }
+    },
+    {
+      "content": "안준석 코디네이터는 MALE, 28세입니다. 돌봄지수는 4.2점입니다. 연락처: 010-2782-3922 이메일: 안준석@example.com",
+      "metadata": {
+        "coordinator_id": 21,
+        "name": "안준석",
+        "gender": "MALE",
+        "age": 28,
+        "care_index": 4.2,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-2782-3922",
+        "email": "안준석@example.com",
+        "address": "인천시 부평구"
+      }
+    },
+    {
+      "content": "홍미래 코디네이터는 FEMALE, 57세입니다. 돌봄지수는 4.1점입니다. 연락처: 010-4543-2003 이메일: 홍미래@example.com",
+      "metadata": {
+        "coordinator_id": 22,
+        "name": "홍미래",
+        "gender": "FEMALE",
+        "age": 57,
+        "care_index": 4.1,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-4543-2003",
+        "email": "홍미래@example.com",
+        "address": "인천시 서구"
+      }
+    },
+    {
+      "content": "서동현 코디네이터는 MALE, 55세입니다. 돌봄지수는 3.3점입니다. 연락처: 010-9682-0641 이메일: 서동현@example.com",
+      "metadata": {
+        "coordinator_id": 23,
+        "name": "서동현",
+        "gender": "MALE",
+        "age": 55,
+        "care_index": 3.3,
+        "regions": "",
+        "languages": "",
+        "certifications": "",
+        "experiences": "",
+        "phone": "010-9682-0641",
+        "email": "서동현@example.com",
+        "address": "인천시 연수구"
+      }
+    }
+  ]
+}
