@@ -14,6 +14,17 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain.schema import Document
 from langchain.vectorstores import FAISS
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from sklearn.metrics.pairwise import cosine_similarity
+try:
+    import speech_recognition as sr
+    import io
+    import base64
+    from pydub import AudioSegment
+    VOICE_SUPPORT = True
+    print("✅ 음성 라이브러리 로드 성공")
+except ImportError as e:
+    print(f"⚠️ 음성 라이브러리 로드 실패: {e}")
+    VOICE_SUPPORT = False
 
 try:
     from sqlalchemy import create_engine, text
@@ -42,6 +53,10 @@ model = genai.GenerativeModel('models/gemini-2.5-flash')
 class ChatRequest(BaseModel):
     message: str
 
+class VoiceRequest(BaseModel):
+    audio_data: Optional[str] = None  # Base64 인코딩된 오디오
+    audio_file: Optional[str] = None  # 파일 경로
+
 class CoordinatorRAGChatbot:
     def __init__(self):
         self.db_engine = None
@@ -49,6 +64,16 @@ class CoordinatorRAGChatbot:
         self.vectorstore = None
         self.documents = []
         self.document_embeddings = []  # 간단한 벡터스토어용
+        # 음성 처리기 초기화 (라이브러리 사용 가능할 때만)
+        if VOICE_SUPPORT:
+            try:
+                self.voice_processor = VoiceProcessor()
+                print("✅ 음성 처리기 초기화 완료")
+            except Exception as e:
+                print(f"⚠️ 음성 처리기 초기화 실패: {e}")
+                self.voice_processor = None
+        else:
+            self.voice_processor = None
         
         # 임베딩 초기화
         try:
@@ -364,48 +389,20 @@ class CoordinatorRAGChatbot:
         # 1단계: 키워드 기반 필터링 (정확도 우선)
         keyword_results = self._enhanced_keyword_search(message)
         
-        # 2단계: RAG 검색으로 보완 (의미적 유사도)
-        if self.vectorstore and len(keyword_results) < 5:
-            try:
-                print("🔍 RAG 검색으로 보완 중...")
-                
-                if self.vectorstore != "simple":
-                    similar_docs = self.vectorstore.similarity_search(
-                        query=message,
-                        k=k*2  # 더 많은 후보 검색
-                    )
-                else:
-                    similar_docs = self._simple_similarity_search(message, k*2)
-                
-                # RAG 결과를 키워드 결과와 합치기
-                rag_coordinators = []
-                for doc in similar_docs:
-                    metadata = doc.metadata
-                    coordinator = {
-                        'coordinator_id': metadata.get('coordinator_id'),
-                        'name': metadata.get('name'),
-                        'gender': metadata.get('gender'),
-                        'age': metadata.get('age'),
-                        'address': metadata.get('address'),
-                        'care_index': metadata.get('care_index'),
-                        'phone': metadata.get('phone'),
-                        'regions': metadata.get('regions'),
-                        'certifications': metadata.get('certifications'),
-                        'experiences': metadata.get('experiences'),
-                        'languages': metadata.get('languages')
-                    }
-                    
-                    # 중복 제거
-                    if not any(c.get('coordinator_id') == coordinator['coordinator_id'] for c in keyword_results):
-                        rag_coordinators.append(coordinator)
-                
-                # 키워드 결과와 RAG 결과 합치기
-                all_coordinators = keyword_results + rag_coordinators
-                print(f"📊 하이브리드 검색 결과: 키워드 {len(keyword_results)}개 + RAG {len(rag_coordinators)}개")
-                
-            except Exception as e:
-                print(f"⚠️ RAG 검색 실패, 키워드 결과만 사용: {e}")
-                all_coordinators = keyword_results
+        # 2단계: 코사인 유사도 검색으로 보완 (의미적 유사도)
+        if len(keyword_results) < 5:
+            print("🔍 코사인 유사도 검색으로 보완 중...")
+            
+            # 코사인 유사도 직접 계산
+            cosine_results = self._cosine_similarity_search(message, k*2)
+            
+            # 키워드 결과와 코사인 유사도 결과 합치기 (중복 제거)
+            all_coordinators = keyword_results.copy()
+            for coord in cosine_results:
+                if not any(c.get('coordinator_id') == coord['coordinator_id'] for c in all_coordinators):
+                    all_coordinators.append(coord)
+            
+            print(f"📊 하이브리드 검색 결과: 키워드 {len(keyword_results)}개 + 코사인 {len(cosine_results)}개")
         else:
             all_coordinators = keyword_results
         
@@ -646,11 +643,11 @@ class CoordinatorRAGChatbot:
         return coordinators[:5]
     
     def _rerank_by_conditions(self, message: str, coordinators: List[Dict]) -> List[Dict]:
-        """조건별 재정렬"""
+        """유사도 점수를 포함한 조건별 재정렬"""
         if not coordinators:
             return []
         
-        print("🔄 조건별 재정렬 실행")
+        print("🔄 조건별 재정렬 실행 (코사인 유사도 포함)")
         message_lower = message.lower()
         
         # 점수 기반 재정렬
@@ -658,50 +655,138 @@ class CoordinatorRAGChatbot:
         
         for coord in coordinators:
             score = 0
+            score_details = []
             
             # 기본 케어지수 점수
-            score += coord.get('care_index', 0) * 10
+            care_score = coord.get('care_index', 0) * 10
+            score += care_score
+            score_details.append(f"케어지수: {care_score:.1f}")
+            
+            # 코사인 유사도 점수 (0~1 → 0~100점)
+            if 'similarity_score' in coord:
+                similarity_score = coord['similarity_score'] * 100
+                score += similarity_score
+                score_details.append(f"유사도: {similarity_score:.1f}")
             
             # 지역 매칭 보너스 (최고 우선순위)
             address = coord.get('address', '').lower()
+            region_bonus = 0
             if '서울' in message_lower and '서울' in address:
-                score += 1000
+                region_bonus = 1000
             elif '부산' in message_lower and '부산' in address:
-                score += 1000
+                region_bonus = 1000
             elif '대구' in message_lower and '대구' in address:
-                score += 1000
+                region_bonus = 1000
             elif '인천' in message_lower and '인천' in address:
-                score += 1000
+                region_bonus = 1000
+            
+            if region_bonus > 0:
+                score += region_bonus
+                score_details.append(f"지역매칭: {region_bonus}")
             
             # 성별 매칭 보너스
             gender = coord.get('gender', '')
+            gender_bonus = 0
             if any(keyword in message_lower for keyword in ['여성', '여자', '여']) and gender == 'FEMALE':
-                score += 500
+                gender_bonus = 500
             elif any(keyword in message_lower for keyword in ['남성', '남자', '남']) and gender == 'MALE':
-                score += 500
+                gender_bonus = 500
+            
+            if gender_bonus > 0:
+                score += gender_bonus
+                score_details.append(f"성별매칭: {gender_bonus}")
             
             # 나이 매칭 보너스
             age = coord.get('age', 0)
+            age_bonus = 0
             if '20대' in message_lower and 20 <= age <= 29:
-                score += 300
+                age_bonus = 300
             elif '30대' in message_lower and 30 <= age <= 39:
-                score += 300
+                age_bonus = 300
             elif '40대' in message_lower and 40 <= age <= 49:
-                score += 300
+                age_bonus = 300
             elif '50대' in message_lower and age >= 50:
-                score += 300
+                age_bonus = 300
+            
+            if age_bonus > 0:
+                score += age_bonus
+                score_details.append(f"나이매칭: {age_bonus}")
             
             # 경험 키워드 보너스
             if any(keyword in message_lower for keyword in ['경험', '베테랑', '전문', '실력']):
-                score += coord.get('care_index', 0) * 20
+                experience_bonus = coord.get('care_index', 0) * 20
+                score += experience_bonus
+                score_details.append(f"경험보너스: {experience_bonus:.1f}")
+            
+            # 점수 상세 정보 저장
+            coord['score_details'] = score_details
+            coord['total_score'] = score
             
             scored_coordinators.append((score, coord))
         
         # 점수순 정렬
         scored_coordinators.sort(key=lambda x: x[0], reverse=True)
         
+        # 상위 결과 점수 상세 출력
+        print("🏆 최종 점수 상세:")
+        for i, (score, coord) in enumerate(scored_coordinators[:3], 1):
+            details = " + ".join(coord.get('score_details', []))
+            print(f"   {i}. {coord['name']} (총점: {score:.1f}) = {details}")
+        
         return [coord for score, coord in scored_coordinators]
-    
+
+    def process_message(self, message: str) -> Dict[str, Any]:
+        """메시지 처리 메인 함수"""
+        start_time = time.time()
+        
+        try:
+            if not message.strip():
+                return {
+                    "response": "안녕하세요! 요양보호사 코디네이터 추천 서비스입니다. 어떤 도움이 필요하신가요?",
+                    "response_type": "greeting",
+                    "recommendations": [],
+                    "processing_time": time.time() - start_time,
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+            
+            # AI를 사용한 코디네이터 관련 질문 판단
+            if self.is_coordinator_related(message):
+                # RAG를 사용한 코디네이터 검색
+                coordinators = self.search_coordinators_with_rag(message)
+                
+                # AI를 사용한 응답 생성
+                response = self.generate_coordinator_response_with_ai(message, coordinators)
+                
+                return {
+                    "response": response,
+                    "response_type": "recommendation",
+                    "recommendations": coordinators[:5],
+                    "processing_time": time.time() - start_time,
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+            else:
+                # AI를 사용한 관련 없는 질문 유도 응답
+                response = self.generate_redirect_response_with_ai(message)
+                
+                return {
+                    "response": response,
+                    "response_type": "redirect",
+                    "recommendations": [],
+                    "processing_time": time.time() - start_time,
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+                
+        except Exception as e:
+            print(f"❌ process_message 오류: {e}")
+            return {
+                "response": "죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+                "response_type": "error",
+                "recommendations": [],
+                "processing_time": time.time() - start_time,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "error": str(e)
+            }
+
     def generate_coordinator_response_with_ai(self, message: str, coordinators: List[Dict]) -> str:
         """AI를 사용한 코디네이터 추천 응답 생성"""
         if not coordinators:
@@ -754,27 +839,7 @@ class CoordinatorRAGChatbot:
             print(f"❌ AI 응답 생성 실패: {e}")
             # AI 실패 시 기본 응답
             return self._generate_basic_response(message, coordinators)
-    
-    def _generate_basic_response(self, message: str, coordinators: List[Dict]) -> str:
-        """기본 응답 생성 (AI 실패 시 백업)"""
-        top_coordinators = coordinators[:3]
-        
-        response_parts = [f"'{message}' 요청에 적합한 코디네이터를 추천드립니다.\n"]
-        
-        for i, coord in enumerate(top_coordinators, 1):
-            gender_kr = '여성' if coord.get('gender') == 'FEMALE' else '남성' if coord.get('gender') == 'MALE' else coord.get('gender', '')
-            
-            response_parts.append(f"**{i}. {coord.get('name', '')} 코디네이터**")
-            response_parts.append(f"- 기본정보: {gender_kr}, {coord.get('age', '')}세")
-            response_parts.append(f"- 돌봄지수: {coord.get('care_index', 0)}점")
-            response_parts.append(f"- 거주지역: {coord.get('address', '')}")
-            response_parts.append(f"- 연락처: {coord.get('phone', '')}")
-            response_parts.append("")
-        
-        response_parts.append("더 자세한 정보나 상담을 원하시면 해당 코디네이터에게 직접 연락해 주세요.")
-        
-        return "\n".join(response_parts)
-    
+
     def generate_redirect_response_with_ai(self, message: str) -> str:
         """AI를 사용한 관련 없는 질문에 대한 유도 응답"""
         try:
@@ -799,54 +864,250 @@ class CoordinatorRAGChatbot:
             print(f"❌ AI 유도 응답 생성 실패: {e}")
             # AI 실패 시 기본 응답
             return f"안녕하세요! 저는 요양보호사 코디네이터 추천을 도와드리는 AI입니다.\n\n'{message}'에 대한 직접적인 답변보다는, 돌봄이 필요한 상황에 적합한 코디네이터를 추천해드릴 수 있습니다.\n\n예를 들어:\n- '서울 지역의 여성 코디네이터를 추천해주세요'\n- '경험이 많은 코디네이터를 찾고 있어요'\n- '부산에서 치매 돌봄 전문가를 소개해주세요'\n\n어떤 조건의 코디네이터를 찾고 계신가요?"
+
+    def process_voice_message(self, audio_data=None, audio_file_path=None, base64_audio=None) -> Dict[str, Any]:
+        """음성 메시지 처리"""
+        if not self.voice_processor:
+            return {
+                "response": "음성 기능이 지원되지 않습니다. 텍스트로 입력해주세요.",
+                "response_type": "error",
+                "recommendations": [],
+                "processing_time": 0,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+            }
+        
+        try:
+            # 음성을 텍스트로 변환
+            if audio_data:
+                # 직접 녹음된 오디오 데이터
+                text = self.voice_processor.speech_to_text_google(audio_data)
+            elif audio_file_path:
+                # 업로드된 음성 파일
+                text = self.voice_processor.process_audio_file(audio_file_path)
+            elif base64_audio:
+                # Base64 인코딩된 음성 데이터
+                text = self.voice_processor.process_base64_audio(base64_audio)
+            else:
+                # 실시간 마이크 녹음
+                audio = self.voice_processor.record_audio(duration=10)
+                if audio:
+                    text = self.voice_processor.speech_to_text_google(audio)
+                else:
+                    return {
+                        "response": "음성 녹음에 실패했습니다. 다시 시도해주세요.",
+                        "response_type": "error",
+                        "recommendations": [],
+                        "processing_time": 0,
+                        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                    }
+            
+            if not text.strip():
+                return {
+                    "response": "음성을 인식할 수 없습니다. 더 명확하게 말씀해주세요.",
+                    "response_type": "error", 
+                    "recommendations": [],
+                    "processing_time": 0,
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
+                }
+            
+            print(f"🎤 음성 인식 완료: '{text}'")
+            
+            # 인식된 텍스트로 일반 메시지 처리
+            result = self.process_message(text)
+            
+            # 음성 관련 정보 추가
+            result["voice_input"] = text
+            result["input_type"] = "voice"
+            
+            return result
+            
+        except Exception as e:
+            print(f"❌ 음성 처리 오류: {e}")
+            return {
+                "response": "음성 처리 중 오류가 발생했습니다. 다시 시도해주세요.",
+                "response_type": "error",
+                "recommendations": [],
+                "processing_time": 0,
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "error": str(e)
+            }
+
+    def _generate_basic_response(self, message: str, coordinators: List[Dict]) -> str:
+        """기본 응답 생성 (AI 실패 시 백업)"""
+        top_coordinators = coordinators[:3]
+        
+        response_parts = [f"'{message}' 요청에 적합한 코디네이터를 추천드립니다.\n"]
+        
+        for i, coord in enumerate(top_coordinators, 1):
+            gender_kr = '여성' if coord.get('gender') == 'FEMALE' else '남성' if coord.get('gender') == 'MALE' else coord.get('gender', '')
+            
+            response_parts.append(f"**{i}. {coord.get('name', '')} 코디네이터**")
+            response_parts.append(f"- 기본정보: {gender_kr}, {coord.get('age', '')}세")
+            response_parts.append(f"- 돌봄지수: {coord.get('care_index', 0)}점")
+            response_parts.append(f"- 거주지역: {coord.get('address', '')}")
+            response_parts.append(f"- 연락처: {coord.get('phone', '')}")
+            response_parts.append("")
+        
+        response_parts.append("더 자세한 정보나 상담을 원하시면 해당 코디네이터에게 직접 연락해 주세요.")
+        
+        return "\n".join(response_parts)
+
+    def _cosine_similarity_search(self, query_text: str, k: int = 5) -> List[Dict]:
+        """코사인 유사도 기반 직접 검색"""
+        if not self.document_embeddings or not self.documents:
+            print("⚠️ 임베딩 데이터가 없어 코사인 유사도 검색 불가")
+            return []
+        
+        try:
+            print(f"🔍 코사인 유사도 검색 시작: '{query_text}'")
+            
+            # 쿼리 임베딩 생성
+            query_embedding = self.embeddings.embed_query(query_text)
+            query_vector = np.array(query_embedding).reshape(1, -1)
+            
+            # 코사인 유사도 계산
+            similarities = cosine_similarity(query_vector, self.document_embeddings)[0]
+            
+            # 상위 k개 결과 선택
+            top_indices = np.argsort(similarities)[::-1][:k]
+            
+            results = []
+            for idx in top_indices:
+                if similarities[idx] > 0.1:  # 최소 유사도 임계값
+                    coord_data = self.documents[idx].metadata
+                    coord_data['similarity_score'] = float(similarities[idx])
+                    results.append(coord_data)
+            
+            print(f"✅ 코사인 유사도 검색 완료: {len(results)}개 결과")
+            return results
+            
+        except Exception as e:
+            print(f"❌ 코사인 유사도 검색 오류: {e}")
+            return []
+
+class VoiceProcessor:
+    """음성 처리 클래스"""
     
-    def process_message(self, message: str) -> Dict[str, Any]:
-        """메시지 처리 메인 함수"""
-        start_time = time.time()
+    def __init__(self):
+        if not VOICE_SUPPORT:
+            raise ImportError("음성 라이브러리가 설치되지 않았습니다")
         
-        if not message.strip():
-            return {
-                "response": "안녕하세요! 요양보호사 코디네이터 추천 서비스입니다. 어떤 도움이 필요하신가요?",
-                "response_type": "greeting",
-                "success": True
-            }
-        
-        # AI를 사용한 코디네이터 관련 질문 판단
-        if self.is_coordinator_related(message):
-            # RAG를 사용한 코디네이터 검색
-            coordinators = self.search_coordinators_with_rag(message)
+        self.recognizer = sr.Recognizer()
+        try:
+            self.microphone = sr.Microphone()
+            # 마이크 설정 최적화
+            with self.microphone as source:
+                self.recognizer.adjust_for_ambient_noise(source)
+        except Exception as e:
+            print(f"⚠️ 마이크 초기화 실패: {e}")
+            self.microphone = None
+    
+    def speech_to_text_google(self, audio_data) -> str:
+        """Google Speech-to-Text 사용"""
+        try:
+            # Google Speech Recognition 사용
+            text = self.recognizer.recognize_google(
+                audio_data, 
+                language='ko-KR'  # 한국어 설정
+            )
+            print(f"🎤 음성 인식 결과: {text}")
+            return text
             
-            # AI를 사용한 응답 생성
-            response = self.generate_coordinator_response_with_ai(message, coordinators)
+        except sr.UnknownValueError:
+            print("❌ 음성을 인식할 수 없습니다")
+            return ""
+        except sr.RequestError as e:
+            print(f"❌ Google Speech Recognition 오류: {e}")
+            return ""
+    
+    def speech_to_text_whisper(self, audio_file_path: str) -> str:
+        """OpenAI Whisper 사용 (오프라인)"""
+        try:
+            import whisper
             
-            end_time = time.time()
+            # Whisper 모델 로드 (최초 1회만)
+            if not hasattr(self, 'whisper_model'):
+                print("🔧 Whisper 모델 로딩 중...")
+                self.whisper_model = whisper.load_model("base")
             
-            return {
-                "response": response,
-                "response_type": "coordinator_recommendation",
-                "recommendations": coordinators[:3],
-                "success": True,
-                "performance": {
-                    "total_time": f"{end_time - start_time:.3f}s",
-                    "coordinator_count": len(self.coordinators_cache) if self.coordinators_cache else 0,
-                    "search_method": "RAG"
-                }
-            }
-        else:
-            # AI를 사용한 관련 없는 질문 유도 응답
-            response = self.generate_redirect_response_with_ai(message)
+            # 음성 파일 인식
+            result = self.whisper_model.transcribe(
+                audio_file_path, 
+                language='ko'  # 한국어 설정
+            )
             
-            end_time = time.time()
+            text = result["text"].strip()
+            print(f"🎤 Whisper 인식 결과: {text}")
+            return text
             
-            return {
-                "response": response,
-                "response_type": "redirect",
-                "success": True,
-                "performance": {
-                    "total_time": f"{end_time - start_time:.3f}s",
-                    "classification_method": "AI"
-                }
-            }
+        except Exception as e:
+            print(f"❌ Whisper 인식 오류: {e}")
+            return ""
+    
+    def record_audio(self, duration: int = 5) -> sr.AudioData:
+        """마이크로 음성 녹음"""
+        try:
+            print(f"🎤 {duration}초간 음성을 녹음합니다...")
+            
+            with self.microphone as source:
+                # 배경 소음 조정
+                self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
+                
+                # 음성 녹음
+                audio = self.recognizer.listen(
+                    source, 
+                    timeout=duration,
+                    phrase_time_limit=duration
+                )
+                
+            print("✅ 녹음 완료")
+            return audio
+            
+        except sr.WaitTimeoutError:
+            print("❌ 녹음 시간 초과")
+            return None
+        except Exception as e:
+            print(f"❌ 녹음 오류: {e}")
+            return None
+    
+    def process_audio_file(self, audio_file_path: str) -> str:
+        """업로드된 음성 파일 처리"""
+        try:
+            # 음성 파일 로드
+            with sr.AudioFile(audio_file_path) as source:
+                audio = self.recognizer.record(source)
+            
+            # STT 처리
+            return self.speech_to_text_google(audio)
+            
+        except Exception as e:
+            print(f"❌ 음성 파일 처리 오류: {e}")
+            return ""
+    
+    def process_base64_audio(self, base64_audio: str) -> str:
+        """Base64 인코딩된 음성 데이터 처리"""
+        try:
+            # Base64 디코딩
+            audio_bytes = base64.b64decode(base64_audio)
+            
+            # 임시 파일로 저장
+            temp_file = "temp_audio.wav"
+            with open(temp_file, "wb") as f:
+                f.write(audio_bytes)
+            
+            # STT 처리
+            result = self.process_audio_file(temp_file)
+            
+            # 임시 파일 삭제
+            import os
+            os.remove(temp_file)
+            
+            return result
+            
+        except Exception as e:
+            print(f"❌ Base64 음성 처리 오류: {e}")
+            return ""
+
 
 # RAG 챗봇 인스턴스
 rag_chatbot = CoordinatorRAGChatbot()
@@ -898,6 +1159,25 @@ async def health_check():
         "documents_count": len(rag_chatbot.documents)
     }
 
+@app.post("/voice-chat")
+async def voice_chat_endpoint(request: VoiceRequest):
+    """음성 기반 챗봇 엔드포인트"""
+    try:
+        result = rag_chatbot.process_voice_message(
+            base64_audio=request.audio_data,
+            audio_file_path=request.audio_file
+        )
+        return result
+        
+    except Exception as e:
+        print(f"❌ 음성 챗봇 오류: {e}")
+        return {
+            "response": "음성 처리 중 오류가 발생했습니다. 다시 시도해 주세요.",
+            "response_type": "error",
+            "success": False,
+            "error": str(e)
+        }
+
 @app.post("/rebuild-vectorstore")
 async def rebuild_vectorstore():
     """벡터스토어 재구축"""
@@ -916,7 +1196,42 @@ async def rebuild_vectorstore():
             "success": False
         }
 
+def find_available_port(start_port=8000, max_attempts=10):
+    """사용 가능한 포트 찾기"""
+    import socket
+    
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('localhost', port))
+                return port
+        except OSError:
+            continue
+    
+    return None
+
 if __name__ == "__main__":
     import uvicorn
+    
     print("🤖 코디네이터 추천 RAG AI 챗봇 시작")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    
+    # 사용 가능한 포트 찾기
+    port = find_available_port(8000, 10)
+    
+    if port:
+        print(f"🌐 서버 시작: http://localhost:{port}")
+        print("📋 API 엔드포인트:")
+        print(f"   - POST http://localhost:{port}/chat")
+        print(f"   - GET  http://localhost:{port}/health")
+        print("🔧 서버 종료: Ctrl+C")
+        print("=" * 50)
+        
+        try:
+            uvicorn.run(app, host="0.0.0.0", port=port)
+        except KeyboardInterrupt:
+            print("\n✅ 서버가 정상적으로 종료되었습니다.")
+        except Exception as e:
+            print(f"\n❌ 서버 오류: {e}")
+    else:
+        print("❌ 사용 가능한 포트를 찾을 수 없습니다 (8000-8009 모두 사용 중)")
+        print("💡 다른 서버를 종료하거나 잠시 후 다시 시도해주세요.")
