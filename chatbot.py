@@ -382,7 +382,7 @@ class CoordinatorRAGChatbot:
             message_lower = message.lower()
             return any(keyword in message_lower for keyword in coordinator_keywords)
     
-    def search_coordinators_with_rag(self, message: str, k: int = 5) -> List[Dict]:
+    def search_coordinators_with_rag(self, message: str, k: int = 3) -> List[Dict]:
         """개선된 하이브리드 검색 (키워드 우선 + RAG 보완)"""
         print(f"🔍 하이브리드 검색 시작: '{message}'")
         
